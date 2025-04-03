@@ -4,11 +4,7 @@ import paho.mqtt.client as mqtt
 from dotenv import load_dotenv
 import os
 
-# Replace with your location (or use GPS module if available)
-LAT = 42.92877204947842
-LONG = -85.58172250335444
-
-# Other Constants
+# Constants
 SLEEP_TIME = 5
 QOS = 0
 KEEPALIVE = 60
@@ -33,8 +29,16 @@ client.connect(BROKER, PORT, KEEPALIVE)
 
 # While loop with five second sleep
 while True:
+    # Get latitude and longitude based on IP (provided implicitly in the fetch)
+    location_url = "http://ip-api.com/json/?fields=lat,lon,query"
+    location_response = requests.get(location_url)
+    location_data = location_response.json()
+    latitude = location_data["lat"]
+    longitude = location_data["lon"]
+    print(f"Location: {latitude}, {longitude}")
+
     print("Checking weather...")
-    weather_url = f"https://api.weatherapi.com/v1/current.json?key={API_KEY}&q={LAT},{LONG}&aqi=no"
+    weather_url = f"https://api.weatherapi.com/v1/current.json?key={API_KEY}&q={latitude},{longitude}&aqi=no"
     weather_response = requests.get(weather_url)
     weather_data = weather_response.json()
     current_weather = weather_data["current"]["condition"]["text"]
