@@ -5,8 +5,8 @@ from dotenv import load_dotenv
 import os
 
 # Replace with your location (or use GPS module if available)
-LAT = 42.0971
-LONG = -75.9117
+LAT = 42.92877204947842
+LONG = -85.58172250335444
 
 # Other Constants
 SLEEP_TIME = 5
@@ -21,7 +21,7 @@ load_dotenv()
 BROKER = os.getenv("BROKER")
 USERNAME = os.getenv("USERNAME")
 PASSWORD = os.getenv("PASSWORD")
-
+API_KEY = os.getenv("WEATHER_API_KEY")
 
 
 
@@ -31,29 +31,14 @@ if BROKER_AUTHENTICATION:
     client.username_pw_set(USERNAME,password=PASSWORD)
 client.connect(BROKER, PORT, KEEPALIVE)
 
-point_info_url = f"https://api.weather.gov/points/{LAT},{LONG}"
-
-response = requests.get(point_info_url)
-data = response.json()
-
-# Extract the nearest station URL
-stations_url = data["properties"]["observationStations"]
-
-# Step 2: Get the first (nearest) station
-stations_response = requests.get(stations_url)
-stations_data = stations_response.json()
-
-# Extract the station ID
-nearest_station = stations_data["features"][0]["properties"]["stationIdentifier"]
-print(f"Nearest Weather Station: {nearest_station}")
-
 # While loop with five second sleep
 while True:
     print("Checking weather...")
-    weather_url = f"https://api.weather.gov/stations/{nearest_station}/observations/latest"
+    weather_url = f"https://api.weatherapi.com/v1/current.json?key={API_KEY}&q={LAT},{LONG}&aqi=no"
     weather_response = requests.get(weather_url)
     weather_data = weather_response.json()
-    current_weather = weather_data["properties"]["textDescription"]
+    current_weather = weather_data["current"]["condition"]["text"]
+    print(f"Current weather: {current_weather}")
     if "rain" in current_weather.lower():
       print("It's raining!")
       client.publish(TOPIC, "rain", QOS)
