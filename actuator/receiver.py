@@ -5,6 +5,7 @@ import os
 
 import pygame
 import time
+import datetime
 
 # Constants
 SLEEP_TIME = 5
@@ -62,19 +63,28 @@ class WeatherReceiver:
                 time.sleep(FADE_OUT_TIME + 1)
             
             # Load and play the new track
-            pygame.mixer.music.load(f"./music/{self.get_weather_track()}")
+            pygame.mixer.music.load(f"./music/{self.get_track()}")
             pygame.mixer.music.play(loops=-1, fade_ms=FADE_IN_TIME * 1000)
 
-    def get_weather_track(self):
+    def get_track(self):
+        day_time = self.get_daytime()
+
         if self.precipitation_state in ["rain", "hail", "drizzle"]:
-            return "day_rainy.mp3"
+            return f"{day_time}_rainy.mp3"
         elif self.precipitation_state == "snow":
-            return "day_snowy.mp3"
+            return f"{day_time}_snowy.mp3"
         elif self.precipitation_state == "none":
-            return "day_sunny.mp3"
+            return f"{day_time}_sunny.mp3"
         else:
             print("Unknown weather condition. Defaulting to day_sunny...")
-            return "day_sunny.mp3"
+            return f"{day_time}_sunny.mp3"
+
+    def get_daytime(self):
+        current_time = datetime.datetime.now()
+        if current_time.hour >= 6 and current_time.hour < 20:
+            return "day"
+        else:
+            return "night"
 
 
     def start(self):
