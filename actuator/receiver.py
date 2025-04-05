@@ -48,6 +48,7 @@ class WeatherReceiver:
 
         print(f"Received message: {msg.payload.decode()}")
         current_precipitation = msg.payload.decode()
+        current_precipitation = "rain" if current_precipitation in ["rain", "hail", "drizzle"] else current_precipitation
 
         # Initialize pygame mixer if not already initialized
         if pygame.mixer.get_init() is None:
@@ -69,7 +70,7 @@ class WeatherReceiver:
     def get_track(self):
         day_time = self.get_daytime()
 
-        if self.precipitation_state in ["rain", "hail", "drizzle"]:
+        if self.precipitation_state == "rain":
             return f"{day_time}_rainy.mp3"
         elif self.precipitation_state == "snow":
             return f"{day_time}_snowy.mp3"
