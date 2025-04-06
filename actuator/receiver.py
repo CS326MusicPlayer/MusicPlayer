@@ -11,7 +11,6 @@ import datetime
 SLEEP_TIME = 5
 QOS = 0
 KEEPALIVE = 60
-TOPIC = "emp/weather"
 BROKER_AUTHENTICATION = True
 PORT = 1883
 
@@ -21,7 +20,6 @@ load_dotenv()
 BROKER = os.getenv("BROKER")
 USERNAME = os.getenv("USERNAME")
 PASSWORD = os.getenv("PASSWORD")
-API_KEY = os.getenv("WEATHER_API_KEY")
 
 class WeatherReceiver:
     def __init__(self):
@@ -36,8 +34,7 @@ class WeatherReceiver:
     def on_connect(self, client, userdata, flags, reason_code, properties=None):
         if reason_code == 0:
             print(f'Connected to {BROKER} successfully.')
-            client.subscribe(TOPIC, qos=QOS)
-            print(f'Subscribed to {TOPIC}')
+            client.subscribe("emp/weather", qos=QOS)
         else:
             print(f'Connection to {BROKER} failed. Return code={reason_code}')
 
