@@ -5,6 +5,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 import os
 import json
+import datetime
 
 # Constants
 SLEEP_TIME = 5
@@ -13,6 +14,7 @@ KEEPALIVE = 60
 TOPIC = "emp/environment"
 BROKER_AUTHENTICATION = True
 PORT = 1883
+TIME_MODE = "system_time"
 
 # Note: these constants must be set if broker requires authentication
 env_path = Path("../.env")
@@ -70,10 +72,21 @@ try:
         precipitation_status = "drizzle"
       else:
         print("No precipitation detected.")
+
+      day_status = "day"
+      current_time = datetime.datetime.now()
+      if TIME_MODE == "system_time":
+          current_hour = current_time.hour
+          if current_hour >= 6 and current_hour < 20:
+              day_status = "day"
+          else:
+              day_status = "night"
+      else:
+          print("Invalid time mode. Defaulting to day_status: day.")
       
       weather_payload = {
           "precipitation_status": precipitation_status,
-          "day_status": "day"
+          "day_status": day_status
       }
       client.publish(TOPIC, json.dumps(weather_payload), QOS)
 
