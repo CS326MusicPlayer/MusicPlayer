@@ -4,12 +4,13 @@ import paho.mqtt.client as mqtt
 from pathlib import Path
 from dotenv import load_dotenv
 import os
+import json
 
 # Constants
 SLEEP_TIME = 5
 QOS = 1
 KEEPALIVE = 60
-TOPIC = "emp/weather"
+TOPIC = "emp/environment"
 BROKER_AUTHENTICATION = True
 PORT = 1883
 
@@ -53,21 +54,28 @@ try:
       weather_data = weather_response.json()
       current_weather = weather_data["current"]["condition"]["text"]
       print(f"Current weather: {current_weather}")
+      
+      precipitation_status = "none"
       if "rain" in current_weather.lower():
         print("It's raining!")
-        client.publish(TOPIC, "rain", QOS)
+        precipitation_status = "rain"
       elif "snow" in current_weather.lower():
         print("It's snowing!")
-        client.publish(TOPIC, "snow", QOS)
+        precipitation_status = "snow"
       elif "hail" in current_weather.lower():
         print("It's hailing!")
-        client.publish(TOPIC, "hail", QOS)
+        precipitation_status = "hail"
       elif "drizzle" in current_weather.lower():
         print("It's drizzling!")
-        client.publish(TOPIC, "drizzle", QOS)
+        precipitation_status = "drizzle"
       else:
         print("No precipitation detected.")
-        client.publish(TOPIC, "none", QOS)
+      
+      weather_payload = {
+          "precipitation_status": precipitation_status,
+          "day_status": "day"
+      }
+      client.publish(TOPIC, json.dumps(weather_payload), QOS)
 
       time.sleep(SLEEP_TIME)
 except KeyboardInterrupt:
