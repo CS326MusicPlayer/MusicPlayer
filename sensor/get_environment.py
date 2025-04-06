@@ -5,7 +5,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 import os
 import json
-import datetime
+from datetime import datetime
 
 # Constants
 SLEEP_TIME = 5
@@ -30,6 +30,43 @@ def on_connect(client, userdata, flags, reason_code, properties):
     else:
         print(f'Connection to {BROKER} failed. Return code={reason_code}')
 
+def get_precipitation(lat, lon):
+    weather_url = f"https://api.weatherapi.com/v1/current.json?key={API_KEY}&q={lat},{lon}&aqi=no"
+    weather_response = requests.get(weather_url)
+    weather_data = weather_response.json()
+    current_weather = weather_data["current"]["condition"]["text"]
+    print(f"Current weather: {current_weather}")
+    
+    if "rain" in current_weather.lower():
+      print("It's raining!")
+      return "rain"
+    elif "snow" in current_weather.lower():
+      print("It's snowing!")
+      return "snow"
+    elif "hail" in current_weather.lower():
+      print("It's hailing!")
+      return "hail"
+    elif "drizzle" in current_weather.lower():
+      print("It's drizzling!")
+      return "drizzle"
+    else:
+      print("No precipitation detected.")
+      return "none"
+    
+def get_sun_times(lat, lon):
+    sun_url = f"https://api.weatherapi.com/v1/astronomy.json?key={API_KEY}&q={lat},{lon}"
+    astro_response = requests.get(sun_url)
+    astro_data = astro_response.json()["astronomy"]["astro"]
+    sunrise = datetime.strptime(astro_data["sunrise"], "%I:%M %p")
+    sunset = datetime.strptime(astro_data["sunset"], "%I:%M %p")
+
+    formatted_sunrise = sunrise.strftime("%H:%M")
+    formatted_sunset = sunset.strftime("%H:%M")
+    
+    print(f"Sunrise: {formatted_sunrise}, Sunset: {formatted_sunset}")
+    
+    return {"sunrise": formatted_sunrise, "sunset": formatted_sunset}
+
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 
 if BROKER_AUTHENTICATION:
@@ -46,47 +83,20 @@ try:
       location_url = "http://ip-api.com/json/?fields=lat,lon,query"
       location_response = requests.get(location_url)
       location_data = location_response.json()
-      latitude = location_data["lat"]
-      longitude = location_data["lon"]
-      print(f"Location: {latitude}, {longitude}")
+      lat = location_data["lat"]
+      lon = location_data["lon"]
+      print(f"Location: {lat}, {lon}")
 
-      print("Checking weather...")
-      weather_url = f"https://api.weatherapi.com/v1/current.json?key={API_KEY}&q={latitude},{longitude}&aqi=no"
-      weather_response = requests.get(weather_url)
-      weather_data = weather_response.json()
-      current_weather = weather_data["current"]["condition"]["text"]
-      print(f"Current weather: {current_weather}")
-      
-      precipitation_status = "none"
-      if "rain" in current_weather.lower():
-        print("It's raining!")
-        precipitation_status = "rain"
-      elif "snow" in current_weather.lower():
-        print("It's snowing!")
-        precipitation_status = "snow"
-      elif "hail" in current_weather.lower():
-        print("It's hailing!")
-        precipitation_status = "hail"
-      elif "drizzle" in current_weather.lower():
-        print("It's drizzling!")
-        precipitation_status = "drizzle"
-      else:
-        print("No precipitation detected.")
+      print("\nChecking weather...")
+      precipitation_status = get_precipitation(lat, lon)
 
-      day_status = "day"
-      current_time = datetime.datetime.now()
-      if TIME_MODE == "system_time":
-          current_hour = current_time.hour
-          if current_hour >= 6 and current_hour < 20:
-              day_status = "day"
-          else:
-              day_status = "night"
-      else:
-          print("Invalid time mode. Defaulting to day_status: day.")
+      print("\nChecking sunset/sunrise...")
+      sun_times = get_sun_times(lat, lon)
       
       weather_payload = {
           "precipitation_status": precipitation_status,
-          "day_status": day_status
+          "sunrise": sun_times["sunrise"],
+          "sunset": sun_times["sunset"]
       }
       client.publish(TOPIC, json.dumps(weather_payload), QOS)
 

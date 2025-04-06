@@ -6,9 +6,10 @@ import os
 
 import pygame
 import time
+from datetime import datetime
 
 # To test:
-# mosquitto_pub -h <BROKER> -P <PASS> -u <USER> -p 8883 -t "emp/environment" -m '{"precipitation_status": "snow", "day_status": "day"}' 
+# mosquitto_pub -h <BROKER> -P <PASS> -u <USER> -p 8883 -t "emp/environment" -m '{"precipitation_status": "snow", "sunrise": "hh:mm", "sunset": "hh:mm"}' 
 
 # Constants
 SLEEP_TIME = 5
@@ -27,7 +28,7 @@ PASSWORD = os.getenv("PASSWORD")
 class WeatherReceiver:
     def __init__(self):
         self.precipitation_state = None
-        self.day_state = None
+        self.sun_state = None
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
         if BROKER_AUTHENTICATION:
             self.client.username_pw_set(USERNAME, password=PASSWORD)
@@ -51,7 +52,12 @@ class WeatherReceiver:
             # Decode the message payload
             msg_payload = json.loads(msg.payload.decode())
             current_precipitation_status = msg_payload["precipitation_status"]
-            current_day_status = msg_payload["day_status"]
+            sunrise = datetime.strptime(msg_payload["sunrise"], "%H:%M").time()
+            sunset = datetime.strptime(msg_payload["sunset"], "%H:%M").time()
+            current_time = datetime.now().time()
+            current_sun_status = "day" if sunrise <= current_time <= sunset else "night"
+            
+            print(f"Sunrise: {sunrise}, Sunset: {sunset}, Current time: {current_time}")
 
             current_precipitation_status = "rain" if current_precipitation_status in ["rain", "hail", "drizzle"] else current_precipitation_status
 
@@ -64,9 +70,9 @@ class WeatherReceiver:
 
             # If the precipitation state has changed, change the music
             if (self.precipitation_state != current_precipitation_status or
-                self.day_state != current_day_status):
+                self.sun_state != current_sun_status):
                 self.precipitation_state = current_precipitation_status
-                self.day_state = current_day_status
+                self.sun_state = current_sun_status
 
                 # Fade out any currently playing music
                 if pygame.mixer.music.get_busy():
@@ -81,7 +87,7 @@ class WeatherReceiver:
             print(f"Message payload: {msg.payload.decode()}")
 
     def get_track(self):
-        if self.day_state == "day":
+        if self.sun_state == "day":
             if self.precipitation_state == "rain":
                 return "day_rainy.mp3"
             elif self.precipitation_state == "snow":
@@ -92,7 +98,7 @@ class WeatherReceiver:
                 print("Unknown weather condition. Defaulting to day_sunny...")
                 return "day_sunny.mp3"
             
-        elif self.day_state == "night":
+        elif self.sun_state == "night":
             if self.precipitation_state == "rain":
                 return "night_rainy.mp3"
             elif self.precipitation_state == "snow":
