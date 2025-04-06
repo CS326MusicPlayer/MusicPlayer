@@ -7,14 +7,28 @@ import os
 import json
 from datetime import datetime
 
+import busio
+import digitalio
+import board
+import adafruit_mcp3xxx.mcp3008 as MCP
+from adafruit_mcp3xxx.analog_in import AnalogIn
+import smbus
+
 # Constants
 SLEEP_TIME = 5
+LIGHT_SAMPLE_SIZE = 20
+
+# MQTT Broker settings
 QOS = 1
 KEEPALIVE = 60
 TOPIC = "emp/environment"
 BROKER_AUTHENTICATION = True
 PORT = 1883
 TIME_MODE = "system_time"
+
+# Temperature sensor settings
+BUS = 1            # I2C bus number
+ADDRESS = 0x48     # TC74 I2C bus address
 
 # Note: these constants must be set if broker requires authentication
 env_path = Path("../.env")
@@ -67,6 +81,37 @@ def get_sun_times(lat, lon):
     
     return {"sunrise": formatted_sunrise, "sunset": formatted_sunset}
 
+def get_temperature():
+    temperature = bus.read_byte(ADDRESS)
+    print(f"Temperature: {temperature}°C")
+    return temperature
+
+def get_light():
+    sensor_readings = []
+    for i in range(LIGHT_SAMPLE_SIZE):
+        raw_value = chan.value >> 6
+        sensor_readings.append(raw_value)
+    
+    average_value = sum(sensor_readings) / LIGHT_SAMPLE_SIZE
+    print(f"Light level: {average_value}")
+    return average_value
+
+
+# Connect to I2C bus
+bus = smbus.SMBus(BUS)
+
+# Create the SPI bus
+spi = busio.SPI(clock=board.SCK, MISO=board.MISO, MOSI=board.MOSI)
+
+# create the cs (chip select)
+cs = digitalio.DigitalInOut(board.D5)
+
+# create the mcp object
+mcp = MCP.MCP3008(spi, cs)
+
+# create an analog input for CH0
+chan = AnalogIn(mcp, MCP.P0)
+
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
 
 if BROKER_AUTHENTICATION:
@@ -92,11 +137,19 @@ try:
 
       print("\nChecking sunset/sunrise...")
       sun_times = get_sun_times(lat, lon)
+
+      print("\nReading temperature...")
+      temperature = get_temperature()
+
+      print("\nReading light...")
+      light_level = get_light()
       
       weather_payload = {
           "precipitation_status": precipitation_status,
           "sunrise": sun_times["sunrise"],
-          "sunset": sun_times["sunset"]
+          "sunset": sun_times["sunset"],
+          "temperature": temperature,
+          "light_level": light_level,
       }
       client.publish(TOPIC, json.dumps(weather_payload), QOS)
 
