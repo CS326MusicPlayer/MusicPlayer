@@ -79,16 +79,16 @@ class EnvironmentSensor:
                 print(f"Location: {lat}, {lon}")
 
                 print("\nChecking weather...")
-                self.set_precipitation(lat, lon)
+                self.get_precipitation(lat, lon)
 
                 print("\nChecking sunset/sunrise...")
-                self.set_time_data(lat, lon)
+                self.get_time_data(lat, lon)
 
                 print("\nReading temperature...")
-                self.set_temperature()
+                self.get_temperature()
 
                 print("\nReading light...")
-                self.set_light()
+                self.get_light()
                 
                 weather_payload = {
                     "precipitation_status": self.precipitation_status,
@@ -104,7 +104,7 @@ class EnvironmentSensor:
             self.client.disconnect()
             print("Done")
 
-    def set_precipitation(self, lat, lon):
+    def get_precipitation(self, lat, lon):
         weather_url = f"https://api.weatherapi.com/v1/current.json?key={API_KEY}&q={lat},{lon}&aqi=no"
         weather_response = requests.get(weather_url)
         weather_data = weather_response.json()
@@ -127,7 +127,7 @@ class EnvironmentSensor:
             print("No precipitation detected.")
             self.precipitation_status = "none"
 
-    def set_time_data(self, lat, lon):
+    def get_time_data(self, lat, lon):
         sun_url = f"https://api.weatherapi.com/v1/astronomy.json?key={API_KEY}&q={lat},{lon}"
         astro_response = requests.get(sun_url)
         astro_data = astro_response.json()["astronomy"]["astro"]
@@ -139,11 +139,11 @@ class EnvironmentSensor:
         
         print(f"Sunrise: {self.sunrise}, Sunset: {self.sunset}")
 
-    def set_temperature(self):
+    def get_temperature(self):
         self.temperature = self.bus.read_byte(ADDRESS)
         print(f"Temperature: {self.temperature}°C")
 
-    def set_light(self):
+    def get_light(self):
         sensor_readings = []
         for i in range(LIGHT_SAMPLE_SIZE):
             raw_value = self.chan.value >> 6
