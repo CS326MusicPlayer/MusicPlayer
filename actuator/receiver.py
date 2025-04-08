@@ -9,7 +9,7 @@ import time
 from datetime import datetime
 
 # To test:
-# mosquitto_pub -h <BROKER> -P <PASS> -u <USER> -p 8883 -t "emp/environment" -m '{"precipitation_status": "snow", "sunrise": "hh:mm", "sunset": "hh:mm", "temperature: 25", "light_level": 0.5}' 
+# mosquitto_pub -h <BROKER> -P <PASS> -u <USER> -p 8883 -t "emp/environment" -m '{"precipitation_status": "snow", "sunrise": "hh:mm", "sunset": "hh:mm", "timezone": "America/Detroit", "temperature: 25", "light_level": 0.5}' 
 
 # Constants
 SLEEP_TIME = 5
