@@ -44,117 +44,116 @@ def on_connect(client, userdata, flags, reason_code, properties):
     else:
         print(f'Connection to {BROKER} failed. Return code={reason_code}')
 
-def get_precipitation(lat, lon):
-    weather_url = f"https://api.weatherapi.com/v1/current.json?key={API_KEY}&q={lat},{lon}&aqi=no"
-    weather_response = requests.get(weather_url)
-    weather_data = weather_response.json()
-    current_weather = weather_data["current"]["condition"]["text"]
-    print(f"Current weather: {current_weather}")
-    
-    if "rain" in current_weather.lower():
-      print("It's raining!")
-      return "rain"
-    elif "snow" in current_weather.lower():
-      print("It's snowing!")
-      return "snow"
-    elif "hail" in current_weather.lower():
-      print("It's hailing!")
-      return "hail"
-    elif "drizzle" in current_weather.lower():
-      print("It's drizzling!")
-      return "drizzle"
-    else:
-      print("No precipitation detected.")
-      return "none"
-    
-def get_sun_times(lat, lon):
-    sun_url = f"https://api.weatherapi.com/v1/astronomy.json?key={API_KEY}&q={lat},{lon}"
-    astro_response = requests.get(sun_url)
-    astro_data = astro_response.json()["astronomy"]["astro"]
-    sunrise = datetime.strptime(astro_data["sunrise"], "%I:%M %p")
-    sunset = datetime.strptime(astro_data["sunset"], "%I:%M %p")
+class EnvironmentSensor:
+    def __init__(self):
+        self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+        if BROKER_AUTHENTICATION:
+            self.client.username_pw_set(USERNAME, password=PASSWORD)
+            print(f"Connecting to broker {BROKER} with authentication {USERNAME}:{PASSWORD}")
+        self.client.on_connect = on_connect
+        self.client.connect(BROKER, PORT, KEEPALIVE)
 
-    formatted_sunrise = sunrise.strftime("%H:%M")
-    formatted_sunset = sunset.strftime("%H:%M")
-    
-    print(f"Sunrise: {formatted_sunrise}, Sunset: {formatted_sunset}")
-    
-    return {"sunrise": formatted_sunrise, "sunset": formatted_sunset}
+        # Initialize sensors
+        self.bus = smbus.SMBus(BUS)
+        self.spi = busio.SPI(clock=board.SCK, MISO=board.MISO, MOSI=board.MOSI)
+        self.cs = digitalio.DigitalInOut(board.D5)
+        self.mcp = MCP.MCP3008(self.spi, self.cs)
+        self.chan = AnalogIn(self.mcp, MCP.P0)
 
-def get_temperature():
-    temperature = bus.read_byte(ADDRESS)
-    print(f"Temperature: {temperature}°C")
-    return temperature
+        self.precipitation_status = None
+        self.sunrise = None
+        self.sunset = None
+        self.temperature = None
+        self.light_level = None
 
-def get_light():
-    sensor_readings = []
-    for i in range(LIGHT_SAMPLE_SIZE):
-        raw_value = chan.value >> 6
-        sensor_readings.append(raw_value)
-    
-    average_value = sum(sensor_readings) / LIGHT_SAMPLE_SIZE
-    print(f"Light level: {average_value}")
-    return average_value
+    def start(self):
+        try:
+            self.client.loop_start()
+            while True:
+                # Get latitude and longitude based on IP
+                location_url = "http://ip-api.com/json/?fields=lat,lon,query"
+                location_response = requests.get(location_url)
+                location_data = location_response.json()
+                lat = location_data["lat"]
+                lon = location_data["lon"]
+                print(f"Location: {lat}, {lon}")
+
+                print("\nChecking weather...")
+                self.set_precipitation(lat, lon)
+
+                print("\nChecking sunset/sunrise...")
+                self.set_time_data(lat, lon)
+
+                print("\nReading temperature...")
+                self.set_temperature()
+
+                print("\nReading light...")
+                self.set_light()
+                
+                weather_payload = {
+                    "precipitation_status": self.precipitation_status,
+                    "sunrise": self.sunrise,
+                    "sunset": self.sunset,
+                    "temperature": self.temperature,
+                    "light_level": self.light_level,
+                }
+                self.client.publish(TOPIC, json.dumps(weather_payload), QOS)
+
+                time.sleep(SLEEP_TIME)
+        except KeyboardInterrupt:
+            self.client.disconnect()
+            print("Done")
+
+    def set_precipitation(self, lat, lon):
+        weather_url = f"https://api.weatherapi.com/v1/current.json?key={API_KEY}&q={lat},{lon}&aqi=no"
+        weather_response = requests.get(weather_url)
+        weather_data = weather_response.json()
+        current_weather = weather_data["current"]["condition"]["text"]
+        print(f"Current weather: {current_weather}")
+        
+        if "rain" in current_weather.lower():
+            print("It's raining!")
+            self.precipitation_status = "rain"
+        elif "snow" in current_weather.lower():
+            print("It's snowing!")
+            self.precipitation_status = "snow"
+        elif "hail" in current_weather.lower():
+            print("It's hailing!")
+            self.precipitation_status = "hail"
+        elif "drizzle" in current_weather.lower():
+            print("It's drizzling!")
+            self.precipitation_status = "drizzle"
+        else:
+            print("No precipitation detected.")
+            self.precipitation_status = "none"
+
+    def set_time_data(self, lat, lon):
+        sun_url = f"https://api.weatherapi.com/v1/astronomy.json?key={API_KEY}&q={lat},{lon}"
+        astro_response = requests.get(sun_url)
+        astro_data = astro_response.json()["astronomy"]["astro"]
+        sunrise = datetime.strptime(astro_data["sunrise"], "%I:%M %p")
+        sunset = datetime.strptime(astro_data["sunset"], "%I:%M %p")
+
+        self.sunrise = sunrise.strftime("%H:%M")
+        self.sunset = sunset.strftime("%H:%M")
+        
+        print(f"Sunrise: {self.sunrise}, Sunset: {self.sunset}")
+
+    def set_temperature(self):
+        self.temperature = self.bus.read_byte(ADDRESS)
+        print(f"Temperature: {self.temperature}°C")
+
+    def set_light(self):
+        sensor_readings = []
+        for i in range(LIGHT_SAMPLE_SIZE):
+            raw_value = self.chan.value >> 6
+            sensor_readings.append(raw_value)
+        
+        self.light_level = sum(sensor_readings) / LIGHT_SAMPLE_SIZE
+        print(f"Light level: {self.light_level}")
 
 
-# Connect to I2C bus
-bus = smbus.SMBus(BUS)
-
-# Create the SPI bus
-spi = busio.SPI(clock=board.SCK, MISO=board.MISO, MOSI=board.MOSI)
-
-# create the cs (chip select)
-cs = digitalio.DigitalInOut(board.D5)
-
-# create the mcp object
-mcp = MCP.MCP3008(spi, cs)
-
-# create an analog input for CH0
-chan = AnalogIn(mcp, MCP.P0)
-
-client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
-
-if BROKER_AUTHENTICATION:
-    client.username_pw_set(USERNAME,password=PASSWORD)
-    print(f"Connecting to broker {BROKER} with authentication {USERNAME}:{PASSWORD}")
-client.on_connect=on_connect
-client.connect(BROKER, PORT, KEEPALIVE)
-
-try:
-  client.loop_start()
-  # While loop with five second sleep
-  while True:
-      # Get latitude and longitude based on IP (provided implicitly in the fetch)
-      location_url = "http://ip-api.com/json/?fields=lat,lon,query"
-      location_response = requests.get(location_url)
-      location_data = location_response.json()
-      lat = location_data["lat"]
-      lon = location_data["lon"]
-      print(f"Location: {lat}, {lon}")
-
-      print("\nChecking weather...")
-      precipitation_status = get_precipitation(lat, lon)
-
-      print("\nChecking sunset/sunrise...")
-      sun_times = get_sun_times(lat, lon)
-
-      print("\nReading temperature...")
-      temperature = get_temperature()
-
-      print("\nReading light...")
-      light_level = get_light()
-      
-      weather_payload = {
-          "precipitation_status": precipitation_status,
-          "sunrise": sun_times["sunrise"],
-          "sunset": sun_times["sunset"],
-          "temperature": temperature,
-          "light_level": light_level,
-      }
-      client.publish(TOPIC, json.dumps(weather_payload), QOS)
-
-      time.sleep(SLEEP_TIME)
-except KeyboardInterrupt:
-  client.disconnect()
-print("Done")
+# Initialize and start the EnvironmentSensor
+sensor = EnvironmentSensor()
+sensor.start()
 
