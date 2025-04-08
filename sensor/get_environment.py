@@ -63,6 +63,7 @@ class EnvironmentSensor:
         self.precipitation_status = None
         self.sunrise = None
         self.sunset = None
+        self.timezone = None
         self.temperature = None
         self.light_level = None
 
@@ -81,7 +82,7 @@ class EnvironmentSensor:
                 print("\nChecking weather...")
                 self.get_precipitation(lat, lon)
 
-                print("\nChecking sunset/sunrise...")
+                print("\nChecking time data...")
                 self.get_time_data(lat, lon)
 
                 print("\nReading temperature...")
@@ -94,6 +95,7 @@ class EnvironmentSensor:
                     "precipitation_status": self.precipitation_status,
                     "sunrise": self.sunrise,
                     "sunset": self.sunset,
+                    "timezone": self.timezone,
                     "temperature": self.temperature,
                     "light_level": self.light_level,
                 }
@@ -130,14 +132,19 @@ class EnvironmentSensor:
     def get_time_data(self, lat, lon):
         sun_url = f"https://api.weatherapi.com/v1/astronomy.json?key={API_KEY}&q={lat},{lon}"
         astro_response = requests.get(sun_url)
-        astro_data = astro_response.json()["astronomy"]["astro"]
+        astro_json = astro_response.json()
+
+        astro_data = astro_json["astronomy"]["astro"]
         sunrise = datetime.strptime(astro_data["sunrise"], "%I:%M %p")
         sunset = datetime.strptime(astro_data["sunset"], "%I:%M %p")
 
         self.sunrise = sunrise.strftime("%H:%M")
         self.sunset = sunset.strftime("%H:%M")
+
+        self.timezone = astro_json["location"]["tz_id"]
         
         print(f"Sunrise: {self.sunrise}, Sunset: {self.sunset}")
+        print(f"Timezone: {self.timezone}")
 
     def get_temperature(self):
         self.temperature = self.bus.read_byte(ADDRESS)
