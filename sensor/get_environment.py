@@ -21,7 +21,7 @@ import smbus
 # mosquitto_pub -h <BROKER> -P <PASS> -u <USER> -t "emp/operations" -m '{"target": -1}'
 
 # Constants
-PI_ID = 1
+PI_ID = "1"
 SLEEP_TIME = 5
 LIGHT_SAMPLE_SIZE = 20
 
@@ -89,6 +89,7 @@ class EnvironmentSensor:
         else:
             self.enabled = False
             print("Sensor disabled.")
+            print("ID:", msg_payload["target"])
 
     def start(self):
         try:
@@ -118,6 +119,7 @@ class EnvironmentSensor:
                     self.get_light()
                 
                     weather_payload = {
+                        "pid": PI_ID,
                         "precipitation_status": self.precipitation_status,
                         "sunrise": self.sunrise,
                         "sunset": self.sunset,
