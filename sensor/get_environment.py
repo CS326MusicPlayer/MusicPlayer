@@ -82,16 +82,15 @@ class EnvironmentSensor:
 
     def on_message(self, client, userdata, msg):
         # Handle received messages
-        msg_payload = json.loads(msg.payload.decode())
-        if msg_payload["discovery"]:
-            self.broadcast_weather()
-        elif msg_payload["target"] == PI_ID:
-            self.enabled = True
-            print("Sensor enabled.")
-        else:
-            self.enabled = False
-            print("Sensor disabled.")
+        try:
+            msg_payload = json.loads(msg.payload.decode())
 
+            if msg_payload.get("discovery") or msg_payload.get("target") == PI_ID:
+                self.broadcast_weather()
+        except json.JSONDecodeError:
+            print("Failed to decode JSON message.")
+            print(f"Message payload: {msg.payload.decode()}")
+    
     def broadcast_weather(self):
         # Get latitude and longitude based on IP
         location_url = "http://ip-api.com/json/?fields=lat,lon,query"
@@ -126,13 +125,7 @@ class EnvironmentSensor:
 
     def start(self):
         try:
-            self.client.loop_start()
-            while True:
-                if not self.enabled:
-                    continue
-                else:
-                    self.broadcast_weather()
-                    time.sleep(SLEEP_TIME)
+            self.client.loop_forever()
 
         except KeyboardInterrupt:
             self.client.disconnect()
