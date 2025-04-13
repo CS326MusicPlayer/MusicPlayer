@@ -14,14 +14,22 @@ import adafruit_mcp3xxx.mcp3008 as MCP
 from adafruit_mcp3xxx.analog_in import AnalogIn
 import smbus
 
+# To enable sensing:
+# mosquitto_pub -h <BROKER> -P <PASS> -u <USER> -t "emp/operations" -m '{"target": PI_ID}'
+
+# To disable sensing:
+# mosquitto_pub -h <BROKER> -P <PASS> -u <USER> -t "emp/operations" -m '{"target": -1}'
+
 # Constants
+PI_ID = 1
 SLEEP_TIME = 5
 LIGHT_SAMPLE_SIZE = 20
 
 # MQTT Broker settings
 QOS = 1
 KEEPALIVE = 60
-TOPIC = "emp/environment"
+PUBLISH_TOPIC = "emp/environment"
+SUBSCRIBE_TOPIC = "emp/operations"
 BROKER_AUTHENTICATION = True
 PORT = 1883
 TIME_MODE = "system_time"
@@ -38,19 +46,15 @@ USERNAME = os.getenv("USERNAME")
 PASSWORD = os.getenv("PASSWORD")
 API_KEY = os.getenv("WEATHER_API_KEY")
 
-def on_connect(client, userdata, flags, reason_code, properties):
-    if reason_code == 0:
-        print(f'Connected to {BROKER} successfully.')
-    else:
-        print(f'Connection to {BROKER} failed. Return code={reason_code}')
-
 class EnvironmentSensor:
     def __init__(self):
+        self.enabled = False
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
         if BROKER_AUTHENTICATION:
             self.client.username_pw_set(USERNAME, password=PASSWORD)
             print(f"Connecting to broker {BROKER} with authentication {USERNAME}:{PASSWORD}")
-        self.client.on_connect = on_connect
+        self.client.on_connect = self.on_connect
+        self.client.on_message = self.on_message 
         self.client.connect(BROKER, PORT, KEEPALIVE)
 
         # Initialize sensors
@@ -67,41 +71,64 @@ class EnvironmentSensor:
         self.temperature = None
         self.light_level = None
 
+    def on_connect(self, client, userdata, flags, reason_code, properties):
+        if reason_code == 0:
+            print(f'Connected to {BROKER} successfully.')
+            # Subscribe to operations topic after successful connection
+            client.subscribe(SUBSCRIBE_TOPIC, QOS)
+            print(f'Subscribed to {SUBSCRIBE_TOPIC}')
+        else:
+            print(f'Connection to {BROKER} failed. Return code={reason_code}')
+
+    def on_message(self, client, userdata, msg):
+        # Handle received messages
+        msg_payload = json.loads(msg.payload.decode())
+        if msg_payload["target"] == PI_ID:
+            self.enabled = True
+            print("Sensor enabled.")
+        else:
+            self.enabled = False
+            print("Sensor disabled.")
+
     def start(self):
         try:
             self.client.loop_start()
             while True:
-                # Get latitude and longitude based on IP
-                location_url = "http://ip-api.com/json/?fields=lat,lon,query"
-                location_response = requests.get(location_url)
-                location_data = location_response.json()
-                lat = location_data["lat"]
-                lon = location_data["lon"]
-                print(f"Location: {lat}, {lon}")
+                if not self.enabled:
+                    continue
+                else:
+                    # Get latitude and longitude based on IP
+                    location_url = "http://ip-api.com/json/?fields=lat,lon,query"
+                    location_response = requests.get(location_url)
+                    location_data = location_response.json()
+                    lat = location_data["lat"]
+                    lon = location_data["lon"]
+                    print(f"Location: {lat}, {lon}")
 
-                print("\nChecking weather...")
-                self.get_precipitation(lat, lon)
+                    print("\nChecking weather...")
+                    self.get_precipitation(lat, lon)
 
-                print("\nChecking time data...")
-                self.get_time_data(lat, lon)
+                    print("\nChecking time data...")
+                    self.get_time_data(lat, lon)
 
-                print("\nReading temperature...")
-                self.get_temperature()
+                    print("\nReading temperature...")
+                    self.get_temperature()
 
-                print("\nReading light...")
-                self.get_light()
+                    print("\nReading light...")
+                    self.get_light()
                 
-                weather_payload = {
-                    "precipitation_status": self.precipitation_status,
-                    "sunrise": self.sunrise,
-                    "sunset": self.sunset,
-                    "timezone": self.timezone,
-                    "temperature": self.temperature,
-                    "light_level": self.light_level,
-                }
-                self.client.publish(TOPIC, json.dumps(weather_payload), QOS)
+                    weather_payload = {
+                        "precipitation_status": self.precipitation_status,
+                        "sunrise": self.sunrise,
+                        "sunset": self.sunset,
+                        "timezone": self.timezone,
+                        "temperature": self.temperature,
+                        "light_level": self.light_level,
+                    }
+                    self.client.publish(PUBLISH_TOPIC, json.dumps(weather_payload), QOS)
 
-                time.sleep(SLEEP_TIME)
+                    time.sleep(SLEEP_TIME)
+
         except KeyboardInterrupt:
             self.client.disconnect()
             print("Done")
