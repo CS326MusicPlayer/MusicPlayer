@@ -83,13 +83,46 @@ class EnvironmentSensor:
     def on_message(self, client, userdata, msg):
         # Handle received messages
         msg_payload = json.loads(msg.payload.decode())
-        if msg_payload["target"] == PI_ID:
+        if msg_payload["discovery"]:
+            self.broadcast_weather()
+        elif msg_payload["target"] == PI_ID:
             self.enabled = True
             print("Sensor enabled.")
         else:
             self.enabled = False
             print("Sensor disabled.")
-            print("ID:", msg_payload["target"])
+
+    def broadcast_weather(self):
+        # Get latitude and longitude based on IP
+        location_url = "http://ip-api.com/json/?fields=lat,lon,query"
+        location_response = requests.get(location_url)
+        location_data = location_response.json()
+        lat = location_data["lat"]
+        lon = location_data["lon"]
+        print(f"Location: {lat}, {lon}")
+
+        print("\nChecking weather...")
+        self.get_precipitation(lat, lon)
+
+        print("\nChecking time data...")
+        self.get_time_data(lat, lon)
+
+        print("\nReading temperature...")
+        self.get_temperature()
+
+        print("\nReading light...")
+        self.get_light()
+    
+        weather_payload = {
+            "pid": PI_ID,
+            "precipitation_status": self.precipitation_status,
+            "sunrise": self.sunrise,
+            "sunset": self.sunset,
+            "timezone": self.timezone,
+            "temperature": self.temperature,
+            "light_level": self.light_level,
+        }
+        self.client.publish(PUBLISH_TOPIC, json.dumps(weather_payload), QOS)
 
     def start(self):
         try:
@@ -98,37 +131,7 @@ class EnvironmentSensor:
                 if not self.enabled:
                     continue
                 else:
-                    # Get latitude and longitude based on IP
-                    location_url = "http://ip-api.com/json/?fields=lat,lon,query"
-                    location_response = requests.get(location_url)
-                    location_data = location_response.json()
-                    lat = location_data["lat"]
-                    lon = location_data["lon"]
-                    print(f"Location: {lat}, {lon}")
-
-                    print("\nChecking weather...")
-                    self.get_precipitation(lat, lon)
-
-                    print("\nChecking time data...")
-                    self.get_time_data(lat, lon)
-
-                    print("\nReading temperature...")
-                    self.get_temperature()
-
-                    print("\nReading light...")
-                    self.get_light()
-                
-                    weather_payload = {
-                        "pid": PI_ID,
-                        "precipitation_status": self.precipitation_status,
-                        "sunrise": self.sunrise,
-                        "sunset": self.sunset,
-                        "timezone": self.timezone,
-                        "temperature": self.temperature,
-                        "light_level": self.light_level,
-                    }
-                    self.client.publish(PUBLISH_TOPIC, json.dumps(weather_payload), QOS)
-
+                    self.broadcast_weather()
                     time.sleep(SLEEP_TIME)
 
         except KeyboardInterrupt:
