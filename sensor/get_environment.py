@@ -178,10 +178,10 @@ class EnvironmentSensor:
     def get_light(self):
         sensor_readings = []
         for i in range(LIGHT_SAMPLE_SIZE):
-            raw_value = self.chan.value >> 6
+            raw_value = self.chan.value
             sensor_readings.append(raw_value)
         
-        self.light_level = sum(sensor_readings) / LIGHT_SAMPLE_SIZE
+        self.light_level = (sum(sensor_readings) / LIGHT_SAMPLE_SIZE)
         print(f"Light level: {self.light_level}")
 
 
