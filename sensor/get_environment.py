@@ -57,11 +57,16 @@ class EnvironmentSensor:
         self.client.on_message = self.on_message 
         self.client.connect(BROKER, PORT, KEEPALIVE)
 
-        # Initialize sensors
+        # Temperature bus setup
         self.bus = smbus.SMBus(BUS)
+
+        # Light sensor setup
         self.spi = busio.SPI(clock=board.SCK, MISO=board.MISO, MOSI=board.MOSI)
+        # Create the cs (chip select)
         self.cs = digitalio.DigitalInOut(board.D5)
+        # Create the mcp object
         self.mcp = MCP.MCP3008(self.spi, self.cs)
+        # Create an analog input for CH0
         self.chan = AnalogIn(self.mcp, MCP.P0)
 
         self.precipitation_status = None
