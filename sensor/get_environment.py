@@ -14,11 +14,8 @@ import adafruit_mcp3xxx.mcp3008 as MCP
 from adafruit_mcp3xxx.analog_in import AnalogIn
 import smbus
 
-# To enable sensing:
+# To request a reading from PI_ID:
 # mosquitto_pub -h <BROKER> -P <PASS> -u <USER> -t "emp/operations" -m '{"target": PI_ID}'
-
-# To disable sensing:
-# mosquitto_pub -h <BROKER> -P <PASS> -u <USER> -t "emp/operations" -m '{"target": -1}'
 
 # Constants
 PI_ID = "1"
@@ -69,6 +66,10 @@ class EnvironmentSensor:
         # Create an analog input for CH0
         self.chan = AnalogIn(self.mcp, MCP.P0)
 
+        # Set up LED
+        self.led = digitalio.DigitalInOut(board.D16) 
+        self.led.direction = digitalio.Direction.OUTPUT
+
         self.precipitation_status = None
         self.sunrise = None
         self.sunset = None
@@ -97,6 +98,8 @@ class EnvironmentSensor:
             print(f"Message payload: {msg.payload.decode()}")
     
     def broadcast_weather(self):
+        self.led.value = True
+
         # Get latitude and longitude based on IP
         location_url = "http://ip-api.com/json/?fields=lat,lon,query"
         location_response = requests.get(location_url)
@@ -127,6 +130,8 @@ class EnvironmentSensor:
             "light_level": self.light_level,
         }
         self.client.publish(PUBLISH_TOPIC, json.dumps(weather_payload), QOS)
+
+        self.led.value = False
 
     def start(self):
         try:
