@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import os
 import json
 from datetime import datetime
+import math
 
 import busio
 import digitalio
@@ -13,6 +14,7 @@ import board
 import adafruit_mcp3xxx.mcp3008 as MCP
 from adafruit_mcp3xxx.analog_in import AnalogIn
 import smbus
+from gpiozero import PWMLED
 
 # To request a reading from PI_ID:
 # mosquitto_pub -h <BROKER> -P <PASS> -u <USER> -t "emp/operations" -m '{"target": PI_ID}'
@@ -21,6 +23,8 @@ import smbus
 PI_ID = "1"
 SLEEP_TIME = 5
 LIGHT_SAMPLE_SIZE = 20
+MIN_BRIGHTNESS = 0.01
+MAX_LOG_LIGHT = math.log10(65535)
 
 # MQTT Broker settings
 QOS = 1
@@ -67,8 +71,7 @@ class EnvironmentSensor:
         self.chan = AnalogIn(self.mcp, MCP.P0)
 
         # Set up LED
-        self.led = digitalio.DigitalInOut(board.D16) 
-        self.led.direction = digitalio.Direction.OUTPUT
+        self.led = PWMLED(16)
 
         self.precipitation_status = None
         self.sunrise = None
@@ -98,7 +101,17 @@ class EnvironmentSensor:
             print(f"Message payload: {msg.payload.decode()}")
     
     def broadcast_weather(self):
-        self.led.value = True
+        raw_light = self.chan.value
+
+        # Scale LED indicator brightness to logarithmic human perception
+        log_light = math.log10(max(1, raw_light))
+
+        # Normalize log brightness to proportion in range [0, 1]
+        normalized_log_light = log_light / MAX_LOG_LIGHT
+
+        # Use normalized log brightness if > MIN_BRIGHTNESS, else MIN_BRIGHTNESS
+        self.led.value = max(normalized_log_light, MIN_BRIGHTNESS)
+        print(max(normalized_log_light, MIN_BRIGHTNESS))
 
         # Get latitude and longitude based on IP
         location_url = "http://ip-api.com/json/?fields=lat,lon,query"
@@ -131,7 +144,7 @@ class EnvironmentSensor:
         }
         self.client.publish(PUBLISH_TOPIC, json.dumps(weather_payload), QOS)
 
-        self.led.value = False
+        self.led.value = 0
 
     def start(self):
         try:
