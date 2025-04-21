@@ -1,0 +1,5 @@
+adafruit-circuitpython-mcp3xxx
+paho-mqtt
+pygame
+lgpio
+gpiozero
