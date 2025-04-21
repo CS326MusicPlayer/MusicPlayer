@@ -46,6 +46,7 @@ BROKER = os.getenv("BROKER")
 USERNAME = os.getenv("USERNAME")
 PASSWORD = os.getenv("PASSWORD")
 API_KEY = os.getenv("WEATHER_API_KEY")
+PID = os.getenv("PID")
 
 class EnvironmentSensor:
     def __init__(self):
@@ -94,7 +95,10 @@ class EnvironmentSensor:
         try:
             msg_payload = json.loads(msg.payload.decode())
 
-            if msg_payload.get("discovery") or msg_payload.get("target") == PI_ID:
+            # For backward compatibility. Remove PI_ID constant later
+            pid = PID if PID else PI_ID    # Use environment variable if set
+
+            if msg_payload.get("discovery") or msg_payload.get("target") == pid:
                 self.broadcast_weather()
         except json.JSONDecodeError:
             print("Failed to decode JSON message.")
