@@ -51,6 +51,9 @@ PASSWORD = os.getenv("PASSWORD")
 API_KEY = os.getenv("WEATHER_API_KEY")
 PID = os.getenv("PID")
 
+# For backward compatibility. Remove PI_ID constant later
+pid = PID if PID else PI_ID    # Use environment variable if set
+
 class EnvironmentSensor:
     def __init__(self):
         self.enabled = False
@@ -98,9 +101,6 @@ class EnvironmentSensor:
         try:
             msg_payload = json.loads(msg.payload.decode())
 
-            # For backward compatibility. Remove PI_ID constant later
-            pid = PID if PID else PI_ID    # Use environment variable if set
-
             if msg_payload.get("discovery") or msg_payload.get("target") == pid:
                 self.broadcast_weather()
         except json.JSONDecodeError:
@@ -141,7 +141,7 @@ class EnvironmentSensor:
         self.get_light()
     
         weather_payload = {
-            "pid": PI_ID,
+            "pid": pid,
             "precipitation_status": self.precipitation_status,
             "sunrise": self.sunrise,
             "sunset": self.sunset,
