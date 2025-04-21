@@ -1,3 +1,6 @@
+# This script reads environmental data from a Raspberry Pi and publishes it to an MQTT broker.
+# Jason Chew (jgc23), Daniel Kim (jk254)
+
 import requests
 import time
 import paho.mqtt.client as mqtt

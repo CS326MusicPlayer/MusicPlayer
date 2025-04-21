@@ -1,3 +1,6 @@
+# This scripts receives environmental data from a Raspberry Pi and plays music based on the weather conditions.
+# Jason Chew (jgc23), Daniel Kim (jk254)
+
 import paho.mqtt.client as mqtt
 import json
 from pathlib import Path
