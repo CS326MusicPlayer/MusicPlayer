@@ -5,4 +5,5 @@ Retrieves ambient information including:
 - Using IP address geolocation:
   - Weather
   - Time
+  - Sunrise/Sunset
 ---
