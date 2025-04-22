@@ -23,7 +23,7 @@ from gpiozero import PWMLED
 # mosquitto_pub -h <BROKER> -P <PASS> -u <USER> -t "emp/operations" -m '{"target": PI_ID}'
 
 # Constants
-PI_ID = "1"
+# PI_ID = "1"
 SLEEP_TIME = 5
 LIGHT_SAMPLE_SIZE = 20
 MIN_BRIGHTNESS = 0.01
@@ -35,7 +35,6 @@ KEEPALIVE = 60
 PUBLISH_TOPIC = "emp/environment"
 SUBSCRIBE_TOPIC = "emp/operations"
 BROKER_AUTHENTICATION = True
-PORT = 1883
 TIME_MODE = "system_time"
 
 # Temperature sensor settings
@@ -50,9 +49,8 @@ USERNAME = os.getenv("USERNAME")
 PASSWORD = os.getenv("PASSWORD")
 API_KEY = os.getenv("WEATHER_API_KEY")
 PID = os.getenv("PID")
+PORT = os.getenv("PORT", 1883)  # Default to 1883 if not set
 
-# For backward compatibility. Remove PI_ID constant later
-pid = PID if PID else PI_ID    # Use environment variable if set
 
 class EnvironmentSensor:
     def __init__(self):
@@ -62,7 +60,7 @@ class EnvironmentSensor:
             self.client.username_pw_set(USERNAME, password=PASSWORD)
             print(f"Connecting to broker {BROKER} with authentication {USERNAME}:{PASSWORD}")
         self.client.on_connect = self.on_connect
-        self.client.on_message = self.on_message 
+        self.client.on_message = self.on_message
         self.client.connect(BROKER, PORT, KEEPALIVE)
 
         # Temperature bus setup
@@ -101,12 +99,12 @@ class EnvironmentSensor:
         try:
             msg_payload = json.loads(msg.payload.decode())
 
-            if msg_payload.get("discovery") or msg_payload.get("target") == pid:
+            if msg_payload.get("discovery") or msg_payload.get("target") == PID:
                 self.broadcast_weather()
         except json.JSONDecodeError:
             print("Failed to decode JSON message.")
             print(f"Message payload: {msg.payload.decode()}")
-    
+
     def broadcast_weather(self):
         raw_light = self.chan.value
 
@@ -139,9 +137,9 @@ class EnvironmentSensor:
 
         print("\nReading light...")
         self.get_light()
-    
+
         weather_payload = {
-            "pid": pid,
+            "pid": PID,
             "precipitation_status": self.precipitation_status,
             "sunrise": self.sunrise,
             "sunset": self.sunset,
@@ -167,7 +165,7 @@ class EnvironmentSensor:
         weather_data = weather_response.json()
         current_weather = weather_data["current"]["condition"]["text"]
         print(f"Current weather: {current_weather}")
-        
+
         if "rain" in current_weather.lower():
             print("It's raining!")
             self.precipitation_status = "rain"
@@ -197,7 +195,7 @@ class EnvironmentSensor:
         self.sunset = sunset.strftime("%H:%M")
 
         self.timezone = astro_json["location"]["tz_id"]
-        
+
         print(f"Sunrise: {self.sunrise}, Sunset: {self.sunset}")
         print(f"Timezone: {self.timezone}")
 
@@ -210,7 +208,7 @@ class EnvironmentSensor:
         for i in range(LIGHT_SAMPLE_SIZE):
             raw_value = self.chan.value
             sensor_readings.append(raw_value)
-        
+
         self.light_level = (sum(sensor_readings) / LIGHT_SAMPLE_SIZE)
         print(f"Light level: {self.light_level}")
 
