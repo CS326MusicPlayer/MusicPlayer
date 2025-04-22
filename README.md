@@ -7,6 +7,15 @@ TBA
 
 ---
 ## Installation:
+- Clone the repository to your Raspberry Pi
+  - Set up environment variable in the root directory
+  ```
+  BROKER=<your_broker>
+  PORT=<your_port>
+  USERNAME=<your_username(optional)>
+  PASSWORD=<your_password(optional)>
+  WEATHER_API_KEY=<your_weather_api_key>
+  ```
 - Activate the virtual environment:
 ```bash
 python3 -m venv --system-site-packages emp
