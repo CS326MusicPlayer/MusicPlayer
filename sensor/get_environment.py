@@ -49,7 +49,8 @@ USERNAME = os.getenv("USERNAME")
 PASSWORD = os.getenv("PASSWORD")
 API_KEY = os.getenv("WEATHER_API_KEY")
 PID = os.getenv("PID")
-PORT = os.getenv("PORT", 1883)  # Default to 1883 if not set
+PORT = int(os.getenv("PORT"))
+CERTS = os.getenv("CERTS")
 
 
 class EnvironmentSensor:
@@ -58,6 +59,7 @@ class EnvironmentSensor:
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
         if BROKER_AUTHENTICATION:
             self.client.username_pw_set(USERNAME, password=PASSWORD)
+            self.client.tls_set(CERTS)
             print(f"Connecting to broker {BROKER} with authentication {USERNAME}:{PASSWORD}")
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
@@ -146,6 +148,7 @@ class EnvironmentSensor:
             "timezone": self.timezone,
             "temperature": self.temperature,
             "light_level": self.light_level,
+            "timestamp": time.time()
         }
         self.client.publish(PUBLISH_TOPIC, json.dumps(weather_payload), QOS)
 
