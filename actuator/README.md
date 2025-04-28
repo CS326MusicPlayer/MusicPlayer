@@ -1,6 +1,2 @@
-# Actuator Raspberry Pi
-Outputs music depending on:
-- Weather (and/or temperature?)
-  - 3 variations (sun-rain-snow)
-- Brightness (and/or time?)
-  - 2 variations (bright-dark)
+# Actuator Program (`receiver.py`)
+`receiver.py` is primarily a test script and proof of concept for playing and transitioning between tracks on the Raspberry Pi. Tracks only change based on the weather conditions and sunrise/sunset times received over MQTT.
