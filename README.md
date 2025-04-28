@@ -12,6 +12,7 @@ TBA
   ```
   BROKER=<your_broker>
   PORT=<your_port>
+  PID=<your_pi_id>
   USERNAME=<your_username(optional)>
   PASSWORD=<your_password(optional)>
   WEATHER_API_KEY=<your_weather_api_key>
