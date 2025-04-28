@@ -81,8 +81,10 @@ class EnvironmentSensor:
 
         if BROKER_AUTHENTICATION:
             self.client.username_pw_set(USERNAME, password=PASSWORD)
-            self.client.tls_set(CERTS)
             print(f"Connecting to broker {BROKER} with authentication {USERNAME}:{PASSWORD}")
+
+        if PORT == 8883:
+            self.client.tls_set(CERTS)
 
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
